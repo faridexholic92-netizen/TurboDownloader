@@ -28,7 +28,7 @@ import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
@@ -78,13 +78,13 @@ fun SettingsScreen() {
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues).verticalScroll(rememberScrollState())) {
             SettingsSection("Download") {
                 SettingsSliderItem(Icons.Default.Tune, "Concurrent Downloads", "${maxConcurrentDownloads.toInt()} downloads at once", maxConcurrentDownloads, { maxConcurrentDownloads = it }, 1f..5f, 3)
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsSliderItem(Icons.Default.Speed, "Threads per Download", "${maxThreadsPerDownload.toInt()} threads", maxThreadsPerDownload, { maxThreadsPerDownload = it }, 1f..8f, 6)
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsSwitchItem(Icons.Default.Wifi, "Wi-Fi Only", "Download only when connected to Wi-Fi", wifiOnly) { wifiOnly = it }
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsSwitchItem(Icons.Default.NetworkCheck, "Speed Limit", "Limit download speed to save bandwidth", speedLimit) { speedLimit = it }
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsSwitchItem(Icons.Default.BatteryChargingFull, "Auto Retry", "Automatically retry failed downloads", autoRetry) { autoRetry = it }
             }
 
@@ -92,7 +92,7 @@ fun SettingsScreen() {
 
             SettingsSection("Appearance") {
                 SettingsSwitchItem(Icons.Default.DarkMode, "Dark Mode", "Use dark theme", darkMode) { darkMode = it }
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsSwitchItem(Icons.Default.Notifications, "Notifications", "Show download notifications", notifications) { notifications = it }
             }
 
@@ -100,7 +100,7 @@ fun SettingsScreen() {
 
             SettingsSection("Storage") {
                 SettingsClickItem(Icons.Default.FolderOpen, "Download Location", "Download/TurboDownloader") {}
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsClickItem(Icons.Default.Delete, "Clear Download History", "Remove completed download records") {}
             }
 

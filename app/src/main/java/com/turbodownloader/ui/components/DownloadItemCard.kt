@@ -38,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -55,6 +56,7 @@ import com.turbodownloader.data.model.FileCategory
 import com.turbodownloader.ui.theme.*
 import com.turbodownloader.util.FileUtil
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DownloadItemCard(
     item: DownloadItem,
@@ -151,7 +153,7 @@ fun DownloadItemCard(
                     Column {
                         Spacer(modifier = Modifier.height(6.dp))
                         LinearProgressIndicator(
-                            progress = { progress },
+                            progress = progress,
                             modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
                             color = statusColor,
                             trackColor = MaterialTheme.colorScheme.surfaceVariant,

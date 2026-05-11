@@ -121,7 +121,7 @@ fun BrowserScreen(onDownloadUrl: (String, String) -> Unit) {
                 )
                 AnimatedVisibility(visible = isLoading, enter = fadeIn(), exit = fadeOut()) {
                     LinearProgressIndicator(
-                        progress = { progress },
+                        progress = progress,
                         modifier = Modifier.fillMaxWidth().height(3.dp),
                         strokeCap = StrokeCap.Round
                     )
