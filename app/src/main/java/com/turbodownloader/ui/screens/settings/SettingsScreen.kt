@@ -42,7 +42,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -61,14 +60,14 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(themeManager: ThemeManager) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    var maxConcurrentDownloads by remember { mutableFloatStateOf(3f) }
-    var maxThreadsPerDownload by remember { mutableFloatStateOf(4f) }
-    var wifiOnly by remember { mutableStateOf(false) }
+    val maxConcurrentDownloads by themeManager.concurrentDownloads.collectAsState(initial = 3f)
+    val maxThreadsPerDownload by themeManager.threadsPerDownload.collectAsState(initial = 4f)
+    val wifiOnly by themeManager.isWifiOnly.collectAsState(initial = false)
     val darkMode by themeManager.isDarkMode.collectAsState(initial = false)
     val coroutineScope = rememberCoroutineScope()
-    var notifications by remember { mutableStateOf(true) }
-    var autoRetry by remember { mutableStateOf(true) }
-    var speedLimit by remember { mutableStateOf(false) }
+    val notifications by themeManager.isNotifications.collectAsState(initial = true)
+    val autoRetry by themeManager.isAutoRetry.collectAsState(initial = true)
+    val speedLimit by themeManager.isSpeedLimit.collectAsState(initial = false)
     var showAboutDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -86,15 +85,15 @@ fun SettingsScreen(themeManager: ThemeManager) {
     ) { paddingValues ->
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues).verticalScroll(rememberScrollState())) {
             SettingsSection("Download") {
-                SettingsSliderItem(Icons.Default.Tune, "Concurrent Downloads", "${maxConcurrentDownloads.toInt()} downloads at once", maxConcurrentDownloads, { maxConcurrentDownloads = it }, 1f..5f, 3)
+                SettingsSliderItem(Icons.Default.Tune, "Concurrent Downloads", "${maxConcurrentDownloads.toInt()} downloads at once", maxConcurrentDownloads, { coroutineScope.launch { themeManager.setConcurrentDownloads(it) } }, 1f..5f, 3)
                 Divider(modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsSliderItem(Icons.Default.Speed, "Threads per Download", "${maxThreadsPerDownload.toInt()} threads", maxThreadsPerDownload, { maxThreadsPerDownload = it }, 1f..8f, 6)
+                SettingsSliderItem(Icons.Default.Speed, "Threads per Download", "${maxThreadsPerDownload.toInt()} threads", maxThreadsPerDownload, { coroutineScope.launch { themeManager.setThreadsPerDownload(it) } }, 1f..8f, 6)
                 Divider(modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsSwitchItem(Icons.Default.Wifi, "Wi-Fi Only", "Download only when connected to Wi-Fi", wifiOnly) { wifiOnly = it }
+                SettingsSwitchItem(Icons.Default.Wifi, "Wi-Fi Only", "Download only when connected to Wi-Fi", wifiOnly) { coroutineScope.launch { themeManager.setWifiOnly(it) } }
                 Divider(modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsSwitchItem(Icons.Default.NetworkCheck, "Speed Limit", "Limit download speed to save bandwidth", speedLimit) { speedLimit = it }
+                SettingsSwitchItem(Icons.Default.NetworkCheck, "Speed Limit", "Limit download speed to save bandwidth", speedLimit) { coroutineScope.launch { themeManager.setSpeedLimit(it) } }
                 Divider(modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsSwitchItem(Icons.Default.BatteryChargingFull, "Auto Retry", "Automatically retry failed downloads", autoRetry) { autoRetry = it }
+                SettingsSwitchItem(Icons.Default.BatteryChargingFull, "Auto Retry", "Automatically retry failed downloads", autoRetry) { coroutineScope.launch { themeManager.setAutoRetry(it) } }
             }
 
             Spacer(Modifier.height(16.dp))
@@ -102,7 +101,7 @@ fun SettingsScreen(themeManager: ThemeManager) {
             SettingsSection("Appearance") {
                 SettingsSwitchItem(Icons.Default.DarkMode, "Dark Mode AMOLED", "Pure black AMOLED theme", darkMode) { coroutineScope.launch { themeManager.setDarkMode(it) } }
                 Divider(modifier = Modifier.padding(horizontal = 16.dp))
-                SettingsSwitchItem(Icons.Default.Notifications, "Notifications", "Show download notifications", notifications) { notifications = it }
+                SettingsSwitchItem(Icons.Default.Notifications, "Notifications", "Show download notifications", notifications) { coroutineScope.launch { themeManager.setNotifications(it) } }
             }
 
             Spacer(Modifier.height(16.dp))

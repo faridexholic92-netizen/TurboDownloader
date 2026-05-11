@@ -62,11 +62,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.padding
+import com.turbodownloader.download.YouTubeExtractor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun BrowserScreen(onDownloadUrl: (String, String) -> Unit) {
+fun BrowserScreen(
+    onDownloadUrl: (String, String) -> Unit,
+    onYouTubeUrl: ((String) -> Unit)? = null
+) {
     var urlText by remember { mutableStateOf("https://www.google.com") }
     var currentUrl by remember { mutableStateOf("https://www.google.com") }
     var isLoading by remember { mutableStateOf(false) }
@@ -146,9 +150,24 @@ fun BrowserScreen(onDownloadUrl: (String, String) -> Unit) {
                         Icon(if (isLoading) Icons.Default.Close else Icons.Default.Refresh, if (isLoading) "Stop" else "Reload")
                     }
                     IconButton(onClick = {
-                        val fileName = URLUtil.guessFileName(currentUrl, null, null)
-                        onDownloadUrl(currentUrl, fileName)
-                        scope.launch { snackbarHostState.showSnackbar("Download started: $fileName") }
+                        if (onYouTubeUrl != null && YouTubeExtractor.isYouTubeUrl(currentUrl)) {
+                            onYouTubeUrl(currentUrl)
+                            scope.launch { snackbarHostState.showSnackbar("Extracting YouTube video...") }
+                        } else {
+                            val fileName = URLUtil.guessFileName(currentUrl, null, null)
+                            val downloadableExts = listOf(".apk", ".zip", ".rar", ".7z", ".pdf", ".mp4", ".mkv", ".mp3",
+                                ".exe", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".tar", ".gz", ".iso",
+                                ".avi", ".mov", ".flv", ".wmv", ".aac", ".flac", ".wav", ".ogg", ".m4a", ".png",
+                                ".jpg", ".jpeg", ".gif", ".bmp", ".svg", ".webp", ".webm")
+                            val isDownloadable = downloadableExts.any { currentUrl.lowercase().contains(it) } ||
+                                fileName.contains(".") && !fileName.endsWith(".html") && !fileName.endsWith(".htm") && !fileName.endsWith(".php")
+                            if (isDownloadable) {
+                                onDownloadUrl(currentUrl, fileName)
+                                scope.launch { snackbarHostState.showSnackbar("Download started: $fileName") }
+                            } else {
+                                scope.launch { snackbarHostState.showSnackbar("No downloadable file detected on this page") }
+                            }
+                        }
                     }) {
                         Icon(Icons.Default.Download, "Download", tint = MaterialTheme.colorScheme.primary)
                     }

@@ -218,6 +218,7 @@ class DownloadEngine @Inject constructor(
         val chunkSize = totalSize / threadCount
         val threadProgress = LongArray(threadCount)
         var lastUpdateTime = System.currentTimeMillis()
+        var lastTotalDownloaded = 0L
 
         val jobs = (0 until threadCount).map { threadIndex ->
             async {
@@ -254,7 +255,7 @@ class DownloadEngine @Inject constructor(
                         if (now - lastUpdateTime >= 500) {
                             val totalDownloaded = threadProgress.sum()
                             val elapsed = (now - lastUpdateTime) / 1000.0
-                            val speed = if (elapsed > 0) (totalDownloaded / ((now - (lastUpdateTime - 500)) / 1000.0)).toLong() else 0L
+                            val speed = if (elapsed > 0) ((totalDownloaded - lastTotalDownloaded) / elapsed).toLong() else 0L
 
                             downloadProgress[downloadId] = DownloadProgress(
                                 downloadId, totalDownloaded, totalSize, speed, DownloadStatus.DOWNLOADING
@@ -263,6 +264,7 @@ class DownloadEngine @Inject constructor(
                             scope.launch {
                                 repository.updateProgress(downloadId, totalDownloaded, speed)
                             }
+                            lastTotalDownloaded = totalDownloaded
                             lastUpdateTime = now
                         }
                     }

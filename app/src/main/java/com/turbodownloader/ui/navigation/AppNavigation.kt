@@ -20,6 +20,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -31,6 +32,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.turbodownloader.data.model.DownloadRequest
+import com.turbodownloader.ui.components.YouTubeDownloadDialog
 import com.turbodownloader.ui.screens.browser.BrowserScreen
 import com.turbodownloader.ui.screens.downloads.DownloadsScreen
 import com.turbodownloader.ui.screens.home.HomeScreen
@@ -86,11 +88,31 @@ fun AppNavigation(themeManager: ThemeManager? = null) {
             composable(Screen.Home.route) { HomeScreen(viewModel = homeViewModel) }
             composable(Screen.Downloads.route) { DownloadsScreen(viewModel = homeViewModel) }
             composable(Screen.Browser.route) {
-                BrowserScreen(onDownloadUrl = { url, fileName ->
-                    homeViewModel.addDownload(DownloadRequest(url = url, fileName = fileName))
-                })
+                BrowserScreen(
+                    onDownloadUrl = { url, fileName ->
+                        homeViewModel.addDownload(DownloadRequest(url = url, fileName = fileName))
+                    },
+                    onYouTubeUrl = { url -> homeViewModel.extractYouTube(url) }
+                )
             }
             composable(Screen.Settings.route) { themeManager?.let { SettingsScreen(it) } }
         }
+    }
+
+    val showYtDialog by homeViewModel.showYtDialog.collectAsState()
+    val ytStreams by homeViewModel.ytStreams.collectAsState()
+    val ytLoading by homeViewModel.ytLoading.collectAsState()
+    val ytError by homeViewModel.ytError.collectAsState()
+    val ytTitle by homeViewModel.ytTitle.collectAsState()
+
+    if (showYtDialog) {
+        YouTubeDownloadDialog(
+            title = ytTitle,
+            streams = ytStreams,
+            isLoading = ytLoading,
+            error = ytError,
+            onStreamSelected = { stream -> homeViewModel.downloadYouTubeStream(stream) },
+            onDismiss = { homeViewModel.dismissYtDialog() }
+        )
     }
 }
