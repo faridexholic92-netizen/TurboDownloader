@@ -102,6 +102,12 @@ dependencies {
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.0.0")
 
+    // DocumentFile for SAF
+    implementation("androidx.documentfile:documentfile:1.0.1")
+
+    // Activity Result APIs
+    implementation("androidx.activity:activity-compose:1.8.2")
+
     // WebKit
     implementation("androidx.webkit:webkit:1.10.0")
 

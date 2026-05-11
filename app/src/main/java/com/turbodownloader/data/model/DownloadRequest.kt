@@ -4,5 +4,5 @@ data class DownloadRequest(
     val url: String,
     val fileName: String = "",
     val headers: Map<String, String> = emptyMap(),
-    val threadCount: Int = 4
+    val threadCount: Int = 0
 )

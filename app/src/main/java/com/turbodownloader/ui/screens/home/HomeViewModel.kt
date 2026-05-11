@@ -13,11 +13,13 @@ import com.turbodownloader.download.DownloadEngine
 import com.turbodownloader.download.YouTubeExtractor
 import com.turbodownloader.download.YouTubeVideoInfo
 import com.turbodownloader.service.DownloadService
+import com.turbodownloader.ui.theme.ThemeManager
 import com.turbodownloader.util.FileUtil
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
@@ -28,7 +30,8 @@ class HomeViewModel @Inject constructor(
     private val application: Application,
     private val repository: DownloadRepository,
     private val downloadEngine: DownloadEngine,
-    private val youTubeExtractor: YouTubeExtractor
+    private val youTubeExtractor: YouTubeExtractor,
+    private val themeManager: ThemeManager
 ) : AndroidViewModel(application) {
 
     private val _selectedCategory = MutableStateFlow<FileCategory?>(null)
@@ -61,13 +64,15 @@ class HomeViewModel @Inject constructor(
             val fileName = request.fileName.ifBlank { FileUtil.getFileNameFromUrl(request.url) }
             val mimeType = FileUtil.getMimeType(fileName)
             val category = FileCategory.fromFileName(fileName)
-            val downloadDir = FileUtil.getDownloadDirectory(application)
+            val customPath = themeManager.downloadPath.first()
+            val downloadDir = FileUtil.getDownloadDirectory(application, customPath.ifBlank { null })
             val uniqueName = FileUtil.getUniqueFileName(downloadDir, fileName)
             val filePath = File(downloadDir, uniqueName).absolutePath
+            val threadCount = if (request.threadCount > 0) request.threadCount else themeManager.threadsPerDownload.first().toInt()
 
             val item = DownloadItem(
                 url = request.url, fileName = uniqueName, filePath = filePath,
-                mimeType = mimeType, category = category, threadCount = request.threadCount
+                mimeType = mimeType, category = category, threadCount = threadCount
             )
 
             val id = repository.insertDownload(item)

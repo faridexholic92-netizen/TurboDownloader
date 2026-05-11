@@ -21,11 +21,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,7 +45,6 @@ fun AddDownloadDialog(
 ) {
     var url by remember { mutableStateOf("") }
     var fileName by remember { mutableStateOf("") }
-    var threadCount by remember { mutableFloatStateOf(4f) }
     var urlError by remember { mutableStateOf<String?>(null) }
     val clipboardManager = LocalClipboardManager.current
 
@@ -99,25 +96,6 @@ fun AddDownloadDialog(
                     shape = RoundedCornerShape(12.dp)
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "Download Threads: ${threadCount.toInt()}",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Medium
-                )
-                Slider(
-                    value = threadCount,
-                    onValueChange = { threadCount = it },
-                    valueRange = 1f..8f,
-                    steps = 6,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("1", style = MaterialTheme.typography.labelSmall)
-                    Text("8", style = MaterialTheme.typography.labelSmall)
-                }
-
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Row(
@@ -140,7 +118,7 @@ fun AddDownloadDialog(
                                 onYouTubeUrl(trimmedUrl)
                                 onDismiss()
                             } else {
-                                onConfirm(DownloadRequest(url = trimmedUrl, fileName = fileName.trim(), threadCount = threadCount.toInt()))
+                                onConfirm(DownloadRequest(url = trimmedUrl, fileName = fileName.trim()))
                             }
                         },
                         shape = RoundedCornerShape(12.dp)

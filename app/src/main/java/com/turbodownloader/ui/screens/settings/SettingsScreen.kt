@@ -68,7 +68,25 @@ fun SettingsScreen(themeManager: ThemeManager) {
     val notifications by themeManager.isNotifications.collectAsState(initial = true)
     val autoRetry by themeManager.isAutoRetry.collectAsState(initial = true)
     val speedLimit by themeManager.isSpeedLimit.collectAsState(initial = false)
+    val downloadPath by themeManager.downloadPath.collectAsState(initial = "")
     var showAboutDialog by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val folderPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        uri?.let {
+            val contentResolver = context.contentResolver
+            contentResolver.takePersistableUriPermission(
+                it,
+                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+            val docUri = androidx.documentfile.provider.DocumentFile.fromTreeUri(context, it)
+            val path = docUri?.uri?.toString() ?: it.toString()
+            coroutineScope.launch { themeManager.setDownloadPath(path) }
+        }
+    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -107,7 +125,12 @@ fun SettingsScreen(themeManager: ThemeManager) {
             Spacer(Modifier.height(16.dp))
 
             SettingsSection("Storage") {
-                SettingsClickItem(Icons.Default.FolderOpen, "Download Location", "Download/TurboDownloader") {}
+                val displayPath = if (downloadPath.isBlank()) "Download/TurboDownloader" else {
+                    val decoded = android.net.Uri.decode(downloadPath)
+                    val lastSegment = decoded.substringAfterLast(":")
+                    if (lastSegment.isNotBlank()) lastSegment else decoded.substringAfterLast("/")
+                }
+                SettingsClickItem(Icons.Default.FolderOpen, "Download Location", displayPath) { folderPicker.launch(null) }
                 Divider(modifier = Modifier.padding(horizontal = 16.dp))
                 SettingsClickItem(Icons.Default.Delete, "Clear Download History", "Remove completed download records") {}
             }

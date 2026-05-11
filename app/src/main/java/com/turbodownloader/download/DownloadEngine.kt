@@ -54,7 +54,8 @@ class DownloadEngine @Inject constructor(
         val downloadedBytes: Long,
         val totalBytes: Long,
         val speed: Long,
-        val status: DownloadStatus
+        val status: DownloadStatus,
+        val eta: Long = -1L
     ) {
         val progress: Float
             get() = if (totalBytes > 0) downloadedBytes.toFloat() / totalBytes else 0f
@@ -76,10 +77,14 @@ class DownloadEngine @Inject constructor(
 
                 repository.updateFileInfo(downloadItem.id, totalSize, supportsRange)
 
-                val downloadDir = FileUtil.getDownloadDirectory(context)
-                val filePath = File(downloadDir, downloadItem.fileName).absolutePath
+                val filePath = downloadItem.filePath
+                val existingFile = File(filePath)
+                existingFile.parentFile?.mkdirs()
+                val existingSize = if (existingFile.exists()) existingFile.length() else 0L
 
-                if (supportsRange && totalSize > 0 && downloadItem.threadCount > 1) {
+                if (supportsRange && totalSize > 0 && existingSize > 0 && existingSize < totalSize && downloadItem.threadCount <= 1) {
+                    resumeSingleThreadDownload(downloadItem.id, downloadItem.url, filePath, existingSize, totalSize)
+                } else if (supportsRange && totalSize > 0 && downloadItem.threadCount > 1) {
                     multiThreadDownload(downloadItem.id, downloadItem.url, filePath, totalSize, downloadItem.threadCount)
                 } else {
                     singleThreadDownload(downloadItem.id, downloadItem.url, filePath)
@@ -153,6 +158,10 @@ class DownloadEngine @Inject constructor(
         }
     }
 
+    private fun calculateEta(remainingBytes: Long, speed: Long): Long {
+        return if (speed > 0) remainingBytes / speed else -1L
+    }
+
     private suspend fun singleThreadDownload(
         downloadId: Long,
         url: String,
@@ -187,9 +196,62 @@ class DownloadEngine @Inject constructor(
                     if (now - lastUpdateTime >= 500) {
                         val elapsed = (now - lastUpdateTime) / 1000.0
                         val speed = ((downloadedBytes - lastDownloadedBytes) / elapsed).toLong()
+                        val eta = calculateEta(totalBytes - downloadedBytes, speed)
 
                         downloadProgress[downloadId] = DownloadProgress(
-                            downloadId, downloadedBytes, totalBytes, speed, DownloadStatus.DOWNLOADING
+                            downloadId, downloadedBytes, totalBytes, speed, DownloadStatus.DOWNLOADING, eta
+                        )
+                        repository.updateProgress(downloadId, downloadedBytes, speed)
+
+                        lastUpdateTime = now
+                        lastDownloadedBytes = downloadedBytes
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun resumeSingleThreadDownload(
+        downloadId: Long,
+        url: String,
+        filePath: String,
+        startFrom: Long,
+        totalSize: Long
+    ) = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url(url)
+            .header("Range", "bytes=$startFrom-")
+            .build()
+        var lastUpdateTime = System.currentTimeMillis()
+        var lastDownloadedBytes = startFrom
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful && response.code != 206) throw Exception("Server error: ${response.code}")
+
+            val body = response.body ?: throw Exception("Empty response body")
+            val file = File(filePath)
+
+            java.io.FileOutputStream(file, true).use { output ->
+                val buffer = ByteArray(8192)
+                var downloadedBytes = startFrom
+                val inputStream = body.byteStream()
+
+                while (true) {
+                    if (!isActive) break
+                    val bytesRead = inputStream.read(buffer)
+                    if (bytesRead == -1) break
+
+                    output.write(buffer, 0, bytesRead)
+                    downloadedBytes += bytesRead
+
+                    val now = System.currentTimeMillis()
+                    if (now - lastUpdateTime >= 500) {
+                        val elapsed = (now - lastUpdateTime) / 1000.0
+                        val speed = ((downloadedBytes - lastDownloadedBytes) / elapsed).toLong()
+                        val eta = calculateEta(totalSize - downloadedBytes, speed)
+
+                        downloadProgress[downloadId] = DownloadProgress(
+                            downloadId, downloadedBytes, totalSize, speed, DownloadStatus.DOWNLOADING, eta
                         )
                         repository.updateProgress(downloadId, downloadedBytes, speed)
 
@@ -256,9 +318,10 @@ class DownloadEngine @Inject constructor(
                             val totalDownloaded = threadProgress.sum()
                             val elapsed = (now - lastUpdateTime) / 1000.0
                             val speed = if (elapsed > 0) ((totalDownloaded - lastTotalDownloaded) / elapsed).toLong() else 0L
+                            val eta = calculateEta(totalSize - totalDownloaded, speed)
 
                             downloadProgress[downloadId] = DownloadProgress(
-                                downloadId, totalDownloaded, totalSize, speed, DownloadStatus.DOWNLOADING
+                                downloadId, totalDownloaded, totalSize, speed, DownloadStatus.DOWNLOADING, eta
                             )
 
                             scope.launch {

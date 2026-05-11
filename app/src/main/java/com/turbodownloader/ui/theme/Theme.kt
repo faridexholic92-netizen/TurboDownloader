@@ -5,26 +5,23 @@ import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val LightColorScheme = lightColorScheme(
-    primary = Blue40,
-    onPrimary = Color.White,
-    primaryContainer = Blue90,
-    onPrimaryContainer = Blue10,
-    secondary = Cyan40,
-    onSecondary = Color.White,
-    secondaryContainer = Cyan90,
-    onSecondaryContainer = Cyan10,
+    primary = Yellow40,
+    onPrimary = Color.Black,
+    primaryContainer = Yellow90,
+    onPrimaryContainer = Yellow10,
+    secondary = Amber,
+    onSecondary = Color.Black,
+    secondaryContainer = Yellow80,
+    onSecondaryContainer = Yellow10,
     tertiary = Orange40,
     onTertiary = Color.White,
     tertiaryContainer = Orange90,
@@ -43,16 +40,16 @@ private val LightColorScheme = lightColorScheme(
 )
 
 private val AmoledDarkColorScheme = darkColorScheme(
-    primary = Blue80,
-    onPrimary = Blue20,
-    primaryContainer = Blue30,
-    onPrimaryContainer = Blue90,
-    secondary = Cyan80,
-    onSecondary = Cyan20,
-    secondaryContainer = Cyan30,
-    onSecondaryContainer = Cyan90,
-    tertiary = Orange80,
-    onTertiary = Orange20,
+    primary = Yellow40,
+    onPrimary = Color.Black,
+    primaryContainer = Yellow30,
+    onPrimaryContainer = Yellow90,
+    secondary = Yellow50,
+    onSecondary = Yellow10,
+    secondaryContainer = Yellow20,
+    onSecondaryContainer = Yellow80,
+    tertiary = Amber,
+    onTertiary = Color.Black,
     tertiaryContainer = Orange30,
     onTertiaryContainer = Orange90,
     error = Red80,
@@ -60,28 +57,20 @@ private val AmoledDarkColorScheme = darkColorScheme(
     errorContainer = Red30,
     onErrorContainer = Red90,
     background = Color.Black,
-    onBackground = Grey90,
+    onBackground = Color(0xFFE6E1D5),
     surface = Color.Black,
-    onSurface = Grey90,
+    onSurface = Color(0xFFE6E1D5),
     surfaceVariant = Color(0xFF1A1A1A),
-    onSurfaceVariant = Grey80,
+    onSurfaceVariant = Color(0xFFCAC4B0),
     outline = Grey40
 )
 
 @Composable
 fun TurboDownloaderTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        darkTheme -> AmoledDarkColorScheme
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            dynamicLightColorScheme(context)
-        }
-        else -> LightColorScheme
-    }
+    val colorScheme = if (darkTheme) AmoledDarkColorScheme else LightColorScheme
 
     val view = LocalView.current
     if (!view.isInEditMode) {

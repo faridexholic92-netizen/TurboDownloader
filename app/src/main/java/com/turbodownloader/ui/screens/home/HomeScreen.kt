@@ -156,7 +156,8 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
                     onOpen = {},
                     onDelete = { viewModel.deleteDownload(item.id) },
                     speed = progress?.speed ?: item.speed,
-                    downloadedSize = progress?.downloadedBytes ?: item.downloadedSize
+                    downloadedSize = progress?.downloadedBytes ?: item.downloadedSize,
+                    eta = progress?.eta ?: -1L
                 )
             }
 

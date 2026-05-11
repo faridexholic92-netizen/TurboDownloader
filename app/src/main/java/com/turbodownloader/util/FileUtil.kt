@@ -9,11 +9,15 @@ import java.text.DecimalFormat
 
 object FileUtil {
 
-    fun getDownloadDirectory(context: Context): File {
-        val dir = File(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-            "TurboDownloader"
-        )
+    fun getDownloadDirectory(context: Context, customPath: String? = null): File {
+        val dir = if (!customPath.isNullOrBlank()) {
+            File(customPath)
+        } else {
+            File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                "TurboDownloader"
+            )
+        }
         if (!dir.exists()) dir.mkdirs()
         return dir
     }

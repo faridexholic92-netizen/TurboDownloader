@@ -69,7 +69,8 @@ fun DownloadItemCard(
     onDelete: () -> Unit = {},
     modifier: Modifier = Modifier,
     speed: Long = 0L,
-    downloadedSize: Long = item.downloadedSize
+    downloadedSize: Long = item.downloadedSize,
+    eta: Long = -1L
 ) {
     val progress by animateFloatAsState(
         targetValue = if (item.fileSize > 0) downloadedSize.toFloat() / item.fileSize else 0f,
@@ -172,6 +173,13 @@ fun DownloadItemCard(
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.primary
                                 )
+                                if (eta > 0) {
+                                    Text(
+                                        text = "ETA: ${FileUtil.formatDuration(eta)}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.tertiary
+                                    )
+                                }
                                 if (item.fileSize > 0) {
                                     Text(
                                         text = "${(progress * 100).toInt()}%",
