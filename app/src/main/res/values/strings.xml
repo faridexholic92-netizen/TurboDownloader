@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Turbo Downloader</string>
+    <string name="download_channel_name">Downloads</string>
+    <string name="download_channel_description">Active download notifications</string>
+    <string name="notification_downloading">Downloading…</string>
+    <string name="notification_download_complete">Download complete</string>
+    <string name="notification_download_failed">Download failed</string>
+</resources>
