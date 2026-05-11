@@ -10,6 +10,8 @@ import com.turbodownloader.data.model.DownloadStatus
 import com.turbodownloader.data.model.FileCategory
 import com.turbodownloader.data.repository.DownloadRepository
 import com.turbodownloader.download.DownloadEngine
+import com.turbodownloader.download.YouTubeExtractor
+import com.turbodownloader.download.YouTubeVideoInfo
 import com.turbodownloader.service.DownloadService
 import com.turbodownloader.util.FileUtil
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -25,7 +27,8 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val application: Application,
     private val repository: DownloadRepository,
-    private val downloadEngine: DownloadEngine
+    private val downloadEngine: DownloadEngine,
+    private val youTubeExtractor: YouTubeExtractor
 ) : AndroidViewModel(application) {
 
     private val _selectedCategory = MutableStateFlow<FileCategory?>(null)
@@ -84,7 +87,63 @@ class HomeViewModel @Inject constructor(
     }
 
     fun deleteDownload(downloadId: Long) {
-        viewModelScope.launch { repository.deleteDownloadById(downloadId) }
+        viewModelScope.launch {
+            val item = repository.getDownloadById(downloadId)
+            item?.let {
+                val file = File(it.filePath)
+                if (file.exists()) file.delete()
+            }
+            repository.deleteDownloadById(downloadId)
+        }
+    }
+
+    private val _ytStreams = MutableStateFlow<List<YouTubeVideoInfo>>(emptyList())
+    val ytStreams: StateFlow<List<YouTubeVideoInfo>> = _ytStreams
+
+    private val _ytLoading = MutableStateFlow(false)
+    val ytLoading: StateFlow<Boolean> = _ytLoading
+
+    private val _ytError = MutableStateFlow<String?>(null)
+    val ytError: StateFlow<String?> = _ytError
+
+    private val _ytTitle = MutableStateFlow("")
+    val ytTitle: StateFlow<String> = _ytTitle
+
+    private val _showYtDialog = MutableStateFlow(false)
+    val showYtDialog: StateFlow<Boolean> = _showYtDialog
+
+    fun isYouTubeUrl(url: String): Boolean = YouTubeExtractor.isYouTubeUrl(url)
+
+    fun extractYouTube(url: String) {
+        _showYtDialog.value = true
+        _ytLoading.value = true
+        _ytError.value = null
+        _ytStreams.value = emptyList()
+        viewModelScope.launch {
+            youTubeExtractor.extractVideoInfo(url).fold(
+                onSuccess = { streams ->
+                    _ytStreams.value = streams
+                    _ytTitle.value = streams.firstOrNull()?.title ?: ""
+                    _ytLoading.value = false
+                },
+                onFailure = { e ->
+                    _ytError.value = e.message ?: "Failed to extract video info"
+                    _ytLoading.value = false
+                }
+            )
+        }
+    }
+
+    fun downloadYouTubeStream(stream: YouTubeVideoInfo) {
+        _showYtDialog.value = false
+        val fileName = "${stream.title}_${stream.quality}.${stream.fileExtension}"
+        addDownload(DownloadRequest(url = stream.directUrl, fileName = fileName, threadCount = 1))
+    }
+
+    fun dismissYtDialog() {
+        _showYtDialog.value = false
+        _ytStreams.value = emptyList()
+        _ytError.value = null
     }
 
     fun getDownloadProgress(downloadId: Long) = downloadEngine.getProgress(downloadId)

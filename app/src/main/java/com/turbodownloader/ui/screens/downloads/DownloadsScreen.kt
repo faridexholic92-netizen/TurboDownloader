@@ -108,6 +108,7 @@ fun DownloadsScreen(viewModel: HomeViewModel = hiltViewModel()) {
                                 onCancel = { viewModel.cancelDownload(item.id) },
                                 onRetry = { viewModel.retryDownload(item) },
                                 onOpen = {},
+                                onDelete = { viewModel.deleteDownload(item.id) },
                                 speed = progress?.speed ?: item.speed,
                                 downloadedSize = progress?.downloadedBytes ?: item.downloadedSize
                             )

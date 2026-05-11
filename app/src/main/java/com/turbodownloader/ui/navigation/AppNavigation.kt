@@ -36,6 +36,7 @@ import com.turbodownloader.ui.screens.downloads.DownloadsScreen
 import com.turbodownloader.ui.screens.home.HomeScreen
 import com.turbodownloader.ui.screens.home.HomeViewModel
 import com.turbodownloader.ui.screens.settings.SettingsScreen
+import com.turbodownloader.ui.theme.ThemeManager
 import androidx.hilt.navigation.compose.hiltViewModel
 
 sealed class Screen(val route: String, val title: String, val selectedIcon: ImageVector, val unselectedIcon: ImageVector) {
@@ -46,7 +47,7 @@ sealed class Screen(val route: String, val title: String, val selectedIcon: Imag
 }
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(themeManager: ThemeManager? = null) {
     val navController = rememberNavController()
     val screens = listOf(Screen.Home, Screen.Downloads, Screen.Browser, Screen.Settings)
     val homeViewModel: HomeViewModel = hiltViewModel()
@@ -89,7 +90,7 @@ fun AppNavigation() {
                     homeViewModel.addDownload(DownloadRequest(url = url, fileName = fileName))
                 })
             }
-            composable(Screen.Settings.route) { SettingsScreen() }
+            composable(Screen.Settings.route) { themeManager?.let { SettingsScreen(it) } }
         }
     }
 }

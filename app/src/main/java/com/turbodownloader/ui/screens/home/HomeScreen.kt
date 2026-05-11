@@ -49,6 +49,7 @@ import com.turbodownloader.data.model.FileCategory
 import com.turbodownloader.ui.components.AddDownloadDialog
 import com.turbodownloader.ui.components.CategoryChip
 import com.turbodownloader.ui.components.DownloadItemCard
+import com.turbodownloader.ui.components.YouTubeDownloadDialog
 import com.turbodownloader.util.FileUtil
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -153,6 +154,7 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
                     onCancel = { viewModel.cancelDownload(item.id) },
                     onRetry = { viewModel.retryDownload(item) },
                     onOpen = {},
+                    onDelete = { viewModel.deleteDownload(item.id) },
                     speed = progress?.speed ?: item.speed,
                     downloadedSize = progress?.downloadedBytes ?: item.downloadedSize
                 )
@@ -178,10 +180,28 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
         }
     }
 
+    val showYtDialog by viewModel.showYtDialog.collectAsState()
+    val ytStreams by viewModel.ytStreams.collectAsState()
+    val ytLoading by viewModel.ytLoading.collectAsState()
+    val ytError by viewModel.ytError.collectAsState()
+    val ytTitle by viewModel.ytTitle.collectAsState()
+
     if (showAddDialog) {
         AddDownloadDialog(
             onDismiss = { showAddDialog = false },
-            onConfirm = { request -> viewModel.addDownload(request); showAddDialog = false }
+            onConfirm = { request -> viewModel.addDownload(request); showAddDialog = false },
+            onYouTubeUrl = { ytUrl -> viewModel.extractYouTube(ytUrl) }
+        )
+    }
+
+    if (showYtDialog) {
+        YouTubeDownloadDialog(
+            title = ytTitle,
+            streams = ytStreams,
+            isLoading = ytLoading,
+            error = ytError,
+            onStreamSelected = { stream -> viewModel.downloadYouTubeStream(stream) },
+            onDismiss = { viewModel.dismissYtDialog() }
         )
     }
 }

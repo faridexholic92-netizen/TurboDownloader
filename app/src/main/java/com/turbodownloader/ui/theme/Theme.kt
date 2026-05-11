@@ -42,7 +42,7 @@ private val LightColorScheme = lightColorScheme(
     outline = Grey40
 )
 
-private val DarkColorScheme = darkColorScheme(
+private val AmoledDarkColorScheme = darkColorScheme(
     primary = Blue80,
     onPrimary = Blue20,
     primaryContainer = Blue30,
@@ -59,13 +59,13 @@ private val DarkColorScheme = darkColorScheme(
     onError = Red20,
     errorContainer = Red30,
     onErrorContainer = Red90,
-    background = Grey10,
+    background = Color.Black,
     onBackground = Grey90,
-    surface = Grey10,
+    surface = Color.Black,
     onSurface = Grey90,
-    surfaceVariant = Grey30,
+    surfaceVariant = Color(0xFF1A1A1A),
     onSurfaceVariant = Grey80,
-    outline = Grey80
+    outline = Grey40
 )
 
 @Composable
@@ -75,11 +75,11 @@ fun TurboDownloaderTheme(
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
+        darkTheme -> AmoledDarkColorScheme
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            dynamicLightColorScheme(context)
         }
-        darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
 

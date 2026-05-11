@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.FolderZip
 import androidx.compose.material.icons.filled.Image
@@ -65,6 +66,7 @@ fun DownloadItemCard(
     onCancel: () -> Unit,
     onRetry: () -> Unit,
     onOpen: () -> Unit,
+    onDelete: () -> Unit = {},
     modifier: Modifier = Modifier,
     speed: Long = 0L,
     downloadedSize: Long = item.downloadedSize
@@ -203,11 +205,16 @@ fun DownloadItemCard(
                     }
                 }
                 DownloadStatus.COMPLETED -> {
-                    Icon(Icons.Default.CheckCircle, "Completed", tint = CompletedColor, modifier = Modifier.size(28.dp))
+                    IconButton(onClick = onDelete, modifier = Modifier.size(40.dp)) {
+                        Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error)
+                    }
                 }
                 DownloadStatus.FAILED, DownloadStatus.CANCELLED -> {
                     IconButton(onClick = onRetry, modifier = Modifier.size(40.dp)) {
                         Icon(Icons.Default.Refresh, "Retry", tint = MaterialTheme.colorScheme.primary)
+                    }
+                    IconButton(onClick = onDelete, modifier = Modifier.size(40.dp)) {
+                        Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error)
                     }
                 }
                 else -> {}

@@ -37,11 +37,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.turbodownloader.data.model.DownloadRequest
+import com.turbodownloader.download.YouTubeExtractor
 
 @Composable
 fun AddDownloadDialog(
     onDismiss: () -> Unit,
-    onConfirm: (DownloadRequest) -> Unit
+    onConfirm: (DownloadRequest) -> Unit,
+    onYouTubeUrl: ((String) -> Unit)? = null
 ) {
     var url by remember { mutableStateOf("") }
     var fileName by remember { mutableStateOf("") }
@@ -133,7 +135,13 @@ fun AddDownloadDialog(
                             if (!url.startsWith("http://") && !url.startsWith("https://") && !url.startsWith("ftp://")) {
                                 urlError = "Invalid URL format"; return@Button
                             }
-                            onConfirm(DownloadRequest(url = url.trim(), fileName = fileName.trim(), threadCount = threadCount.toInt()))
+                            val trimmedUrl = url.trim()
+                            if (onYouTubeUrl != null && YouTubeExtractor.isYouTubeUrl(trimmedUrl)) {
+                                onYouTubeUrl(trimmedUrl)
+                                onDismiss()
+                            } else {
+                                onConfirm(DownloadRequest(url = trimmedUrl, fileName = fileName.trim(), threadCount = threadCount.toInt()))
+                            }
                         },
                         shape = RoundedCornerShape(12.dp)
                     ) {
