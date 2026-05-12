@@ -22,6 +22,7 @@ import org.libtorrent4j.alerts.Alert
 import org.libtorrent4j.alerts.AlertType
 import org.libtorrent4j.alerts.AddTorrentAlert
 import org.libtorrent4j.alerts.TorrentFinishedAlert
+import org.libtorrent4j.swig.torrent_flags_t
 import java.io.File
 import java.net.URLDecoder
 import java.util.concurrent.ConcurrentHashMap
@@ -107,19 +108,31 @@ class TorrentEngine @Inject constructor(
             if (it.isRunning) return it
         }
 
-        val sp = SettingsPack()
-        sp.setEnableDht(true)
-        sp.setEnableLsd(true)
-        sp.activeDownloads(3)
-        sp.activeSeeds(3)
-        sp.connectionsLimit(200)
-        sp.downloadRateLimit(0)
-        sp.uploadRateLimit(0)
+        try {
+            val sp = SettingsPack()
+            sp.setEnableDht(true)
+            sp.setEnableLsd(true)
+            sp.activeDownloads(3)
+            sp.activeSeeds(3)
+            sp.connectionsLimit(200)
+            sp.downloadRateLimit(0)
+            sp.uploadRateLimit(0)
 
-        val session = SessionManager(false)
-        session.start(SessionParams(sp))
-        sessionManager = session
-        return session
+            val session = SessionManager(false)
+            session.start(SessionParams(sp))
+
+            // Wait for DHT to bootstrap
+            var dhtWait = 0
+            while (!session.isDhtRunning && dhtWait < 10) {
+                Thread.sleep(1000)
+                dhtWait++
+            }
+
+            sessionManager = session
+            return session
+        } catch (e: UnsatisfiedLinkError) {
+            throw RuntimeException("Torrent library not available on this device: ${e.message}")
+        }
     }
 
     fun startTorrentDownload(torrentInfo: TorrentInfo, downloadId: Long) {
@@ -160,17 +173,21 @@ class TorrentEngine @Inject constructor(
                 })
 
                 // Download magnet URI - this resolves metadata from peers and starts downloading
-                session.download(torrentInfo.magnetUri, saveDir, null)
+                session.download(torrentInfo.magnetUri, saveDir, torrent_flags_t())
 
                 // Wait for metadata using find() with Sha1Hash
                 var attempts = 0
                 var handle: TorrentHandle? = null
                 val sha1 = Sha1Hash.parseHex(torrentInfo.infoHash)
 
-                while (attempts < 120 && isActive) {
-                    handle = session.find(sha1)
-                    if (handle != null && handle.status().hasMetadata()) break
-                    if (handle != null && !handle.status().hasMetadata()) {
+                while (attempts < 180 && isActive) {
+                    try {
+                        handle = session.find(sha1)
+                        if (handle != null && handle.status().hasMetadata()) break
+                        if (handle != null && !handle.status().hasMetadata()) {
+                            handle = null
+                        }
+                    } catch (_: Exception) {
                         handle = null
                     }
                     delay(1000)
@@ -178,7 +195,7 @@ class TorrentEngine @Inject constructor(
                 }
 
                 if (handle == null) {
-                    repository.markFailed(downloadId, "Could not find peers or metadata. Try again later.")
+                    repository.markFailed(downloadId, "Could not find peers or fetch metadata after ${attempts}s. Check your internet connection and try again.")
                     return@launch
                 }
 

@@ -162,25 +162,29 @@ class HomeViewModel @Inject constructor(
 
     fun addMagnetDownload(magnetUrl: String) {
         viewModelScope.launch {
-            val torrentInfo = TorrentEngine.parseMagnetLink(magnetUrl) ?: run {
-                _ytError.value = "Invalid magnet link"
-                return@launch
+            try {
+                val torrentInfo = TorrentEngine.parseMagnetLink(magnetUrl) ?: run {
+                    _ytError.value = "Invalid magnet link"
+                    return@launch
+                }
+                val customPath = themeManager.downloadPath.first()
+                val downloadDir = FileUtil.getDownloadDirectory(application, customPath.ifBlank { null })
+                val filePath = File(downloadDir, torrentInfo.name).absolutePath
+
+                val item = DownloadItem(
+                    url = magnetUrl,
+                    fileName = torrentInfo.name,
+                    filePath = filePath,
+                    mimeType = "application/x-bittorrent",
+                    category = FileCategory.OTHER,
+                    threadCount = 1
+                )
+
+                val id = repository.insertDownload(item)
+                torrentEngine.startTorrentDownload(torrentInfo, id)
+            } catch (e: Exception) {
+                _ytError.value = "Torrent error: ${e.message}"
             }
-            val customPath = themeManager.downloadPath.first()
-            val downloadDir = FileUtil.getDownloadDirectory(application, customPath.ifBlank { null })
-            val filePath = File(downloadDir, torrentInfo.name).absolutePath
-
-            val item = DownloadItem(
-                url = magnetUrl,
-                fileName = torrentInfo.name,
-                filePath = filePath,
-                mimeType = "application/x-bittorrent",
-                category = FileCategory.OTHER,
-                threadCount = 1
-            )
-
-            val id = repository.insertDownload(item)
-            torrentEngine.startTorrentDownload(torrentInfo, id)
         }
     }
 

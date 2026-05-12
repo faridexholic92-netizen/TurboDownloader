@@ -56,6 +56,7 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/DEPENDENCIES"
         }
     }
 }
@@ -123,6 +124,9 @@ dependencies {
     implementation("org.libtorrent4j:libtorrent4j:2.1.0-35")
     implementation("org.libtorrent4j:libtorrent4j-android-arm64:2.1.0-35")
     implementation("org.libtorrent4j:libtorrent4j-android-arm:2.1.0-35")
+
+    // NewPipe Extractor for YouTube
+    implementation("com.github.teamnewpipe:NewPipeExtractor:v0.24.5")
 
     // Splash Screen
     implementation("androidx.core:core-splashscreen:1.0.1")
