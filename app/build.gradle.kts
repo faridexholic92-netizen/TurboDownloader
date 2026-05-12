@@ -119,6 +119,11 @@ dependencies {
     implementation("androidx.media3:media3-ui:1.2.1")
     implementation("androidx.media3:media3-common:1.2.1")
 
+    // libtorrent4j for BitTorrent protocol
+    implementation("org.libtorrent4j:libtorrent4j:2.1.0-35")
+    implementation("org.libtorrent4j:libtorrent4j-android-arm64:2.1.0-35")
+    implementation("org.libtorrent4j:libtorrent4j-android-arm:2.1.0-35")
+
     // Splash Screen
     implementation("androidx.core:core-splashscreen:1.0.1")
 

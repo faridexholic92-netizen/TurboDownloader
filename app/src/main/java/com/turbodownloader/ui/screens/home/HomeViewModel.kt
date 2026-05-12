@@ -127,17 +127,22 @@ class HomeViewModel @Inject constructor(
         _ytError.value = null
         _ytStreams.value = emptyList()
         viewModelScope.launch {
-            youTubeExtractor.extractVideoInfo(url).fold(
-                onSuccess = { streams ->
-                    _ytStreams.value = streams
-                    _ytTitle.value = streams.firstOrNull()?.title ?: ""
-                    _ytLoading.value = false
-                },
-                onFailure = { e ->
-                    _ytError.value = e.message ?: "Failed to extract video info"
-                    _ytLoading.value = false
-                }
-            )
+            try {
+                youTubeExtractor.extractVideoInfo(url).fold(
+                    onSuccess = { streams ->
+                        _ytStreams.value = streams
+                        _ytTitle.value = streams.firstOrNull()?.title ?: ""
+                        _ytLoading.value = false
+                    },
+                    onFailure = { e ->
+                        _ytError.value = e.message ?: "Failed to extract video info"
+                        _ytLoading.value = false
+                    }
+                )
+            } catch (e: Exception) {
+                _ytError.value = "Extraction error: ${e.message}"
+                _ytLoading.value = false
+            }
         }
     }
 

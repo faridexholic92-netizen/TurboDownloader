@@ -11,3 +11,8 @@
 # Coroutines
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+
+# libtorrent4j
+-keep class org.libtorrent4j.** { *; }
+-keep class org.libtorrent4j.swig.** { *; }
+-dontwarn org.libtorrent4j.**

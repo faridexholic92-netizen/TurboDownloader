@@ -54,7 +54,7 @@ class YouTubeExtractor @Inject constructor(
         withContext(Dispatchers.IO) {
             try {
                 val videoId = extractVideoId(youtubeUrl)
-                    ?: return@withContext Result.failure(Exception("Invalid YouTube URL"))
+                    ?: return@withContext Result.failure(Exception("Invalid YouTube URL. Paste a valid link like:\nhttps://www.youtube.com/watch?v=xxxxx\nhttps://youtu.be/xxxxx"))
 
                 for (instance in PIPED_INSTANCES) {
                     try {
@@ -66,20 +66,32 @@ class YouTubeExtractor @Inject constructor(
                     }
                 }
 
-                extractFromHtml(videoId)
+                try {
+                    extractFromHtml(videoId)
+                } catch (e: Exception) {
+                    Result.failure(Exception("All extraction methods failed. Video may be restricted or private."))
+                }
             } catch (e: Exception) {
                 Result.failure(Exception("YouTube extraction failed: ${e.message}"))
             }
         }
 
     private fun extractFromPiped(apiBase: String, videoId: String): Result<List<YouTubeVideoInfo>> {
-        val request = Request.Builder()
-            .url("$apiBase/streams/$videoId")
-            .header("User-Agent", "TurboDownloader/1.0")
+        val pipedClient = client.newBuilder()
+            .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
             .build()
 
-        val response = client.newCall(request).execute()
-        if (!response.isSuccessful) return Result.failure(Exception("Piped API error: ${response.code}"))
+        val request = Request.Builder()
+            .url("$apiBase/streams/$videoId")
+            .header("User-Agent", "TurboDownloader/1.4")
+            .build()
+
+        val response = pipedClient.newCall(request).execute()
+        if (!response.isSuccessful) {
+            response.close()
+            return Result.failure(Exception("Piped API error: ${response.code}"))
+        }
 
         val body = response.body?.string() ?: return Result.failure(Exception("Empty response"))
         val json = JSONObject(body)

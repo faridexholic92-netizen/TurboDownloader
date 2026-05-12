@@ -1,24 +1,29 @@
 package com.turbodownloader.torrent
 
 import android.content.Context
-import com.turbodownloader.data.model.DownloadItem
 import com.turbodownloader.data.model.DownloadStatus
-import com.turbodownloader.data.model.FileCategory
 import com.turbodownloader.data.repository.DownloadRepository
-import com.turbodownloader.download.DownloadEngine
 import com.turbodownloader.util.FileUtil
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
+import org.libtorrent4j.AlertListener
+import org.libtorrent4j.SessionManager
+import org.libtorrent4j.SessionParams
+import org.libtorrent4j.SettingsPack
+import org.libtorrent4j.Sha1Hash
+import org.libtorrent4j.TorrentHandle
+import org.libtorrent4j.alerts.Alert
+import org.libtorrent4j.alerts.AlertType
+import org.libtorrent4j.alerts.AddTorrentAlert
+import org.libtorrent4j.alerts.TorrentFinishedAlert
 import java.io.File
 import java.net.URLDecoder
-import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -28,7 +33,8 @@ data class TorrentInfo(
     val totalSize: Long,
     val files: List<TorrentFile>,
     val infoHash: String,
-    val trackers: List<String>
+    val trackers: List<String>,
+    val magnetUri: String = ""
 )
 
 data class TorrentFile(
@@ -43,7 +49,9 @@ class TorrentEngine @Inject constructor(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val activeJobs = ConcurrentHashMap<Long, Job>()
-    private val client = OkHttpClient.Builder().build()
+    private var sessionManager: SessionManager? = null
+    private val torrentHandles = ConcurrentHashMap<Long, TorrentHandle>()
+    private val finishedTorrents = ConcurrentHashMap<Long, Boolean>()
 
     companion object {
         private val MAGNET_PATTERN = Regex("magnet:\\?xt=urn:btih:([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})")
@@ -71,7 +79,8 @@ class TorrentEngine @Inject constructor(
                 totalSize = 0L,
                 files = emptyList(),
                 infoHash = infoHash,
-                trackers = trackers
+                trackers = trackers,
+                magnetUri = magnet
             )
         }
 
@@ -92,36 +101,128 @@ class TorrentEngine @Inject constructor(
         }
     }
 
+    @Synchronized
+    private fun getOrCreateSession(): SessionManager {
+        sessionManager?.let {
+            if (it.isRunning) return it
+        }
+
+        val sp = SettingsPack()
+        sp.setEnableDht(true)
+        sp.setEnableLsd(true)
+        sp.activeDownloads(3)
+        sp.activeSeeds(3)
+        sp.connectionsLimit(200)
+        sp.downloadRateLimit(0)
+        sp.uploadRateLimit(0)
+
+        val session = SessionManager(false)
+        session.start(SessionParams(sp))
+        sessionManager = session
+        return session
+    }
+
     fun startTorrentDownload(torrentInfo: TorrentInfo, downloadId: Long) {
         val job = scope.launch {
             try {
                 repository.updateStatus(downloadId, DownloadStatus.DOWNLOADING)
+                finishedTorrents[downloadId] = false
 
                 val downloadDir = FileUtil.getDownloadDirectory(context)
-                val torrentDir = File(downloadDir, torrentInfo.name)
-                torrentDir.mkdirs()
+                val saveDir = File(downloadDir, "Torrents")
+                saveDir.mkdirs()
 
-                val cacheApiUrl = "https://itorrents.org/torrent/${torrentInfo.infoHash.uppercase()}.torrent"
-                val request = Request.Builder().url(cacheApiUrl).build()
+                val session = getOrCreateSession()
 
-                try {
-                    val response = client.newCall(request).execute()
-                    if (response.isSuccessful) {
-                        val torrentFile = File(torrentDir, "${torrentInfo.name}.torrent")
-                        response.body?.byteStream()?.use { input ->
-                            torrentFile.outputStream().use { output ->
-                                input.copyTo(output)
+                session.addListener(object : AlertListener {
+                    override fun types(): IntArray? = null
+
+                    override fun alert(alert: Alert<*>) {
+                        when (alert.type()) {
+                            AlertType.ADD_TORRENT -> {
+                                try {
+                                    val addAlert = alert as AddTorrentAlert
+                                    addAlert.handle().resume()
+                                } catch (_: Exception) {}
                             }
+                            AlertType.TORRENT_FINISHED -> {
+                                try {
+                                    val finAlert = alert as TorrentFinishedAlert
+                                    val handle = finAlert.handle()
+                                    torrentHandles.entries.find { it.value == handle }?.let { entry ->
+                                        finishedTorrents[entry.key] = true
+                                    }
+                                } catch (_: Exception) {}
+                            }
+                            else -> {}
                         }
                     }
-                } catch (_: Exception) {
+                })
+
+                // Download magnet URI - this resolves metadata from peers and starts downloading
+                session.download(torrentInfo.magnetUri, saveDir, null)
+
+                // Wait for metadata using find() with Sha1Hash
+                var attempts = 0
+                var handle: TorrentHandle? = null
+                val sha1 = Sha1Hash.parseHex(torrentInfo.infoHash)
+
+                while (attempts < 120 && isActive) {
+                    handle = session.find(sha1)
+                    if (handle != null && handle.status().hasMetadata()) break
+                    if (handle != null && !handle.status().hasMetadata()) {
+                        handle = null
+                    }
+                    delay(1000)
+                    attempts++
                 }
 
+                if (handle == null) {
+                    repository.markFailed(downloadId, "Could not find peers or metadata. Try again later.")
+                    return@launch
+                }
+
+                torrentHandles[downloadId] = handle
+
+                val ti = handle.torrentFile()
+                if (ti != null) {
+                    repository.updateFileInfo(downloadId, ti.totalSize(), true)
+                    val item = repository.getDownloadById(downloadId)
+                    if (item != null) {
+                        val filePath = File(saveDir, ti.name()).absolutePath
+                        repository.updateDownload(item.copy(
+                            filePath = filePath,
+                            fileName = ti.name(),
+                            fileSize = ti.totalSize()
+                        ))
+                    }
+                }
+
+                // Monitor progress until finished
+                while (isActive) {
+                    if (finishedTorrents[downloadId] == true) break
+
+                    try {
+                        val status = handle.status()
+                        val downloaded = status.totalDone()
+                        val speed = status.downloadRate().toLong()
+                        repository.updateProgress(downloadId, downloaded, speed)
+                    } catch (_: Exception) {}
+
+                    delay(1000)
+                }
+
+                repository.updateProgress(downloadId, handle.status().totalDone(), 0)
                 repository.markCompleted(downloadId)
+
+                handle.pause()
+
             } catch (e: Exception) {
                 repository.markFailed(downloadId, "Torrent error: ${e.message}")
             } finally {
                 activeJobs.remove(downloadId)
+                torrentHandles.remove(downloadId)
+                finishedTorrents.remove(downloadId)
             }
         }
         activeJobs[downloadId] = job
@@ -129,9 +230,23 @@ class TorrentEngine @Inject constructor(
 
     fun cancelTorrent(downloadId: Long) {
         activeJobs[downloadId]?.cancel()
+        torrentHandles[downloadId]?.let { handle ->
+            try {
+                sessionManager?.remove(handle)
+            } catch (_: Exception) {}
+        }
         activeJobs.remove(downloadId)
+        torrentHandles.remove(downloadId)
+        finishedTorrents.remove(downloadId)
         scope.launch {
             repository.updateStatus(downloadId, DownloadStatus.CANCELLED)
         }
+    }
+
+    fun shutdown() {
+        try {
+            sessionManager?.stop()
+            sessionManager = null
+        } catch (_: Exception) {}
     }
 }
