@@ -224,6 +224,11 @@ class TorrentEngine @Inject constructor(
                         val downloaded = status.totalDone()
                         val speed = status.downloadRate().toLong()
                         repository.updateProgress(downloadId, downloaded, speed)
+
+                        // Update seeder/leecher counts
+                        val seeders = status.numSeeds()
+                        val leechers = status.numPeers() - seeders
+                        repository.updatePeerInfo(downloadId, seeders, if (leechers > 0) leechers else 0)
                     } catch (_: Exception) {}
 
                     delay(1000)

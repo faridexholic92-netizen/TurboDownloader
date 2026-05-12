@@ -20,6 +20,9 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        ndk {
+            abiFilters += listOf("x86", "x86_64", "armeabi-v7a", "arm64-v8a")
+        }
     }
 
     buildTypes {
@@ -57,6 +60,9 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
             excludes += "/META-INF/DEPENDENCIES"
+        }
+        jniLibs {
+            useLegacyPackaging = true
         }
     }
 }
@@ -125,8 +131,9 @@ dependencies {
     implementation("org.libtorrent4j:libtorrent4j-android-arm64:2.1.0-35")
     implementation("org.libtorrent4j:libtorrent4j-android-arm:2.1.0-35")
 
-    // NewPipe Extractor for YouTube
-    implementation("com.github.teamnewpipe:NewPipeExtractor:v0.24.5")
+    // yt-dlp for YouTube (runs yt-dlp natively on Android)
+    implementation("io.github.junkfood02.youtubedl-android:library:0.16.0")
+    implementation("io.github.junkfood02.youtubedl-android:ffmpeg:0.16.0")
 
     // Splash Screen
     implementation("androidx.core:core-splashscreen:1.0.1")

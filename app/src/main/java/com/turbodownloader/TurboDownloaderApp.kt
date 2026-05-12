@@ -4,6 +4,9 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
+import android.util.Log
+import com.yausername.youtubedl_android.YoutubeDL
+import com.yausername.ffmpeg.FFmpeg
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
@@ -12,6 +15,16 @@ class TurboDownloaderApp : Application() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannels()
+        initYoutubeDL()
+    }
+
+    private fun initYoutubeDL() {
+        try {
+            YoutubeDL.getInstance().init(this)
+            FFmpeg.getInstance().init(this)
+        } catch (e: Exception) {
+            Log.e("TurboDownloader", "Failed to init yt-dlp: ${e.message}")
+        }
     }
 
     private fun createNotificationChannels() {

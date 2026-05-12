@@ -1,15 +1,10 @@
 package com.turbodownloader.download
 
+import com.yausername.youtubedl_android.YoutubeDL
+import com.yausername.youtubedl_android.YoutubeDLRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
-import org.schabi.newpipe.extractor.NewPipe
-import org.schabi.newpipe.extractor.ServiceList
-import org.schabi.newpipe.extractor.downloader.Downloader
-import org.schabi.newpipe.extractor.downloader.Request
-import org.schabi.newpipe.extractor.downloader.Response
-
-import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -20,15 +15,14 @@ data class YouTubeVideoInfo(
     val mimeType: String,
     val quality: String,
     val fileExtension: String,
-    val fileSize: Long = 0L
+    val fileSize: Long = 0L,
+    val formatId: String = ""
 )
 
 @Singleton
 class YouTubeExtractor @Inject constructor(
     private val client: OkHttpClient
 ) {
-    private var initialized = false
-
     companion object {
         private val YOUTUBE_PATTERNS = listOf(
             Pattern.compile("(?:https?://)?(?:www\\.)?youtube\\.com/watch\\?v=([\\w-]{11})"),
@@ -50,58 +44,6 @@ class YouTubeExtractor @Inject constructor(
         }
     }
 
-    @Synchronized
-    private fun ensureInitialized() {
-        if (initialized) return
-        val httpClient = client.newBuilder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .build()
-
-        NewPipe.init(object : Downloader() {
-            override fun execute(request: Request): Response {
-                val data = request.dataToSend()
-                val builder = okhttp3.Request.Builder()
-                    .url(request.url())
-                    .method(
-                        request.httpMethod(),
-                        if (data != null)
-                            okhttp3.RequestBody.create(null, data)
-                        else null
-                    )
-
-                val headers = request.headers()
-                for ((key, values) in headers) {
-                    for (value in values) {
-                        builder.addHeader(key, value)
-                    }
-                }
-
-                builder.header(
-                    "User-Agent",
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0"
-                )
-
-                val response = httpClient.newCall(builder.build()).execute()
-                val body = response.body?.string() ?: ""
-
-                val responseHeaders = mutableMapOf<String, List<String>>()
-                for (name in response.headers.names()) {
-                    responseHeaders[name] = response.headers.values(name)
-                }
-
-                return Response(
-                    response.code,
-                    response.message,
-                    responseHeaders,
-                    body,
-                    response.request.url.toString()
-                )
-            }
-        })
-        initialized = true
-    }
-
     suspend fun extractVideoInfo(youtubeUrl: String): Result<List<YouTubeVideoInfo>> =
         withContext(Dispatchers.IO) {
             try {
@@ -110,106 +52,106 @@ class YouTubeExtractor @Inject constructor(
                         Exception("Invalid YouTube URL. Paste a valid link like:\nhttps://www.youtube.com/watch?v=xxxxx\nhttps://youtu.be/xxxxx")
                     )
 
-                ensureInitialized()
-
                 val url = "https://www.youtube.com/watch?v=$videoId"
-                val extractor = ServiceList.YouTube.getStreamExtractor(url)
-                extractor.fetchPage()
 
-                val title = try {
-                    extractor.name
-                        .replace("[^a-zA-Z0-9\\s\\-_]".toRegex(), "")
-                        .replace("\\s+".toRegex(), "_")
-                        .take(100)
-                        .ifBlank { "youtube_$videoId" }
-                } catch (_: Exception) {
-                    "youtube_$videoId"
+                // Use yt-dlp to get video info (same as user's Python: yt-dlp -j URL)
+                val request = YoutubeDLRequest(url)
+                request.addOption("--dump-json")
+                request.addOption("--no-playlist")
+
+                val response = YoutubeDL.getInstance().execute(request)
+                val jsonStr = response.out
+
+                if (jsonStr.isNullOrBlank()) {
+                    return@withContext Result.failure(Exception("No video info returned from yt-dlp"))
                 }
 
+                val json = org.json.JSONObject(jsonStr)
+                val title = json.optString("title", "youtube_$videoId")
+                    .replace("[^a-zA-Z0-9\\s\\-_]".toRegex(), "")
+                    .replace("\\s+".toRegex(), "_")
+                    .take(100)
+                    .ifBlank { "youtube_$videoId" }
+
                 val streams = mutableListOf<YouTubeVideoInfo>()
+                val formats = json.optJSONArray("formats")
 
-                // Video streams
-                try {
-                    val videoStreams = extractor.videoStreams
-                    for (stream in videoStreams) {
-                        val streamUrl = stream.content ?: continue
-                        if (streamUrl.isEmpty()) continue
-                        val format = stream.format
-                        val ext = format?.suffix ?: "mp4"
-                        val mime = format?.mimeType ?: "video/mp4"
-                        val quality = stream.resolution ?: "unknown"
+                if (formats != null) {
+                    for (i in 0 until formats.length()) {
+                        try {
+                            val format = formats.getJSONObject(i)
+                            val formatUrl = format.optString("url", "")
+                            if (formatUrl.isEmpty()) continue
 
-                        streams.add(
-                            YouTubeVideoInfo(
-                                title = title,
-                                directUrl = streamUrl,
-                                mimeType = mime,
-                                quality = quality,
-                                fileExtension = ext
-                            )
-                        )
+                            val formatId = format.optString("format_id", "")
+                            val ext = format.optString("ext", "mp4")
+                            val filesize = format.optLong("filesize", format.optLong("filesize_approx", 0L))
+                            val height = format.optInt("height", 0)
+                            val vcodec = format.optString("vcodec", "none")
+                            val acodec = format.optString("acodec", "none")
+
+                            val isVideo = vcodec != "none" && vcodec.isNotEmpty()
+                            val isAudio = acodec != "none" && acodec.isNotEmpty()
+
+                            if (!isVideo && !isAudio) continue
+
+                            val quality: String
+                            val mimeType: String
+
+                            if (isVideo && isAudio) {
+                                quality = "${height}p"
+                                mimeType = "video/$ext"
+                            } else if (isVideo) {
+                                quality = "${height}p (video only)"
+                                mimeType = "video/$ext"
+                            } else {
+                                val abr = format.optInt("abr", format.optInt("tbr", 0))
+                                quality = "Audio ${abr}kbps"
+                                mimeType = "audio/$ext"
+                            }
+
+                            if (height > 0 || !isVideo) {
+                                streams.add(
+                                    YouTubeVideoInfo(
+                                        title = title,
+                                        directUrl = formatUrl,
+                                        mimeType = mimeType,
+                                        quality = quality,
+                                        fileExtension = ext,
+                                        fileSize = filesize,
+                                        formatId = formatId
+                                    )
+                                )
+                            }
+                        } catch (_: Exception) {}
                     }
-                } catch (_: Exception) {}
+                }
 
-                // Video-only streams
-                try {
-                    val videoOnlyStreams = extractor.videoOnlyStreams
-                    for (stream in videoOnlyStreams) {
-                        val streamUrl = stream.content ?: continue
-                        if (streamUrl.isEmpty()) continue
-                        val format = stream.format
-                        val ext = format?.suffix ?: "mp4"
-                        val mime = format?.mimeType ?: "video/mp4"
-                        val quality = "${stream.resolution ?: "unknown"} (video only)"
-
-                        streams.add(
-                            YouTubeVideoInfo(
-                                title = title,
-                                directUrl = streamUrl,
-                                mimeType = mime,
-                                quality = quality,
-                                fileExtension = ext
-                            )
-                        )
+                // Sort: video+audio first (by height desc), then video-only (by height desc), then audio (by bitrate desc)
+                val sorted = streams.sortedWith(compareByDescending<YouTubeVideoInfo> {
+                    when {
+                        it.mimeType.startsWith("video/") && !it.quality.contains("video only") -> 2
+                        it.mimeType.startsWith("video/") -> 1
+                        else -> 0
                     }
-                } catch (_: Exception) {}
+                }.thenByDescending {
+                    Regex("(\\d+)").find(it.quality)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                })
 
-                // Audio streams
-                try {
-                    val audioStreams = extractor.audioStreams
-                    for (stream in audioStreams) {
-                        val streamUrl = stream.content ?: continue
-                        if (streamUrl.isEmpty()) continue
-                        val format = stream.format
-                        val ext = format?.suffix ?: "m4a"
-                        val mime = format?.mimeType ?: "audio/mp4"
-                        val bitrate = stream.averageBitrate
-                        val quality = "Audio ${bitrate}kbps"
-
-                        streams.add(
-                            YouTubeVideoInfo(
-                                title = title,
-                                directUrl = streamUrl,
-                                mimeType = mime,
-                                quality = quality,
-                                fileExtension = ext
-                            )
-                        )
-                    }
-                } catch (_: Exception) {}
-
-                if (streams.isEmpty()) {
-                    Result.failure(Exception("No downloadable streams found. Video may be restricted, private, or age-gated."))
+                if (sorted.isEmpty()) {
+                    Result.failure(Exception("No downloadable streams found. Video may be restricted or private."))
                 } else {
-                    Result.success(streams)
+                    Result.success(sorted)
                 }
             } catch (e: Exception) {
                 val msg = when {
-                    e.message?.contains("captcha", ignoreCase = true) == true ->
-                        "YouTube is requesting CAPTCHA verification. Try again later."
-                    e.message?.contains("not available", ignoreCase = true) == true ->
-                        "Video is not available. It may be private or region-restricted."
-                    else -> "YouTube extraction failed: ${e.message}"
+                    e.message?.contains("Video unavailable", ignoreCase = true) == true ->
+                        "Video is not available. It may be private or deleted."
+                    e.message?.contains("Sign in", ignoreCase = true) == true ->
+                        "This video requires sign-in. Try a different video."
+                    e.message?.contains("confirm your age", ignoreCase = true) == true ->
+                        "This video is age-restricted."
+                    else -> "YouTube extraction failed: ${e.message?.take(200)}"
                 }
                 Result.failure(Exception(msg))
             }

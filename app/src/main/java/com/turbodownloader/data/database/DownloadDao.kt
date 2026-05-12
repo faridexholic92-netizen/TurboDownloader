@@ -70,4 +70,7 @@ interface DownloadDao {
 
     @Query("UPDATE downloads SET fileSize = :fileSize, resumable = :resumable WHERE id = :id")
     suspend fun updateFileInfo(id: Long, fileSize: Long, resumable: Boolean)
+
+    @Query("UPDATE downloads SET seeders = :seeders, leechers = :leechers WHERE id = :id")
+    suspend fun updatePeerInfo(id: Long, seeders: Int, leechers: Int)
 }

@@ -25,7 +25,8 @@ object AppModule {
             context,
             DownloadDatabase::class.java,
             "turbo_downloads.db"
-        ).build()
+        ).fallbackToDestructiveMigration()
+        .build()
     }
 
     @Provides

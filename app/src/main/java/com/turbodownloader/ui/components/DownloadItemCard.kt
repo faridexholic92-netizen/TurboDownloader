@@ -190,6 +190,25 @@ fun DownloadItemCard(
                                 }
                             }
                         }
+                        // Seeder/Leecher display for torrent downloads
+                        if (item.status == DownloadStatus.DOWNLOADING && (item.seeders > 0 || item.leechers > 0)) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Text(
+                                    text = "S: ${item.seeders}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = CompletedColor
+                                )
+                                Text(
+                                    text = "L: ${item.leechers}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
                     }
                 }
             }

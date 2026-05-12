@@ -70,4 +70,7 @@ class DownloadRepository @Inject constructor(
 
     suspend fun deleteAllCompleted() =
         downloadDao.deleteAllByStatus(DownloadStatus.COMPLETED)
+
+    suspend fun updatePeerInfo(id: Long, seeders: Int, leechers: Int) =
+        downloadDao.updatePeerInfo(id, seeders, leechers)
 }

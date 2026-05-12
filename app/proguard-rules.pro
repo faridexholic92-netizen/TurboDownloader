@@ -17,8 +17,6 @@
 -keep class org.libtorrent4j.swig.** { *; }
 -dontwarn org.libtorrent4j.**
 
-# NewPipe Extractor
--keep class org.schabi.newpipe.extractor.** { *; }
--keep class org.mozilla.javascript.** { *; }
--keep class org.mozilla.classfile.ClassFileWriter
--dontwarn org.mozilla.javascript.tools.**
+# yt-dlp (youtubedl-android)
+-keep class com.yausername.youtubedl_android.** { *; }
+-keep class com.yausername.ffmpeg.** { *; }

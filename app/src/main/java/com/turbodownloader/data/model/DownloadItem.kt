@@ -21,7 +21,9 @@ data class DownloadItem(
     val errorMessage: String? = null,
     val category: FileCategory = FileCategory.OTHER,
     val resumable: Boolean = true,
-    val headers: String = "{}"
+    val headers: String = "{}",
+    val seeders: Int = 0,
+    val leechers: Int = 0
 )
 
 enum class DownloadStatus {

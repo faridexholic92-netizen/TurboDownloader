@@ -7,7 +7,7 @@ import com.turbodownloader.data.model.DownloadItem
 
 @Database(
     entities = [DownloadItem::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
