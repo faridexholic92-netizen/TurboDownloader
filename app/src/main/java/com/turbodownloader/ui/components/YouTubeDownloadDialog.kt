@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.turbodownloader.download.YouTubeVideoInfo
+import com.turbodownloader.util.FileUtil
 
 @Composable
 fun YouTubeDownloadDialog(
@@ -119,7 +120,12 @@ fun YouTubeDownloadDialog(
                                                 fontWeight = FontWeight.Medium
                                             )
                                             Text(
-                                                text = "${stream.fileExtension.uppercase()} • ${stream.mimeType}",
+                                                text = buildString {
+                                                    append(stream.fileExtension.uppercase())
+                                                    if (stream.fileSize > 0) {
+                                                        append(" • ${FileUtil.formatFileSize(stream.fileSize)}")
+                                                    }
+                                                },
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )

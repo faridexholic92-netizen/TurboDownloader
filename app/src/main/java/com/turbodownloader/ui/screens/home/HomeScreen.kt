@@ -47,14 +47,18 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.turbodownloader.data.model.FileCategory
 import com.turbodownloader.ui.components.AddDownloadDialog
+import android.content.Intent
+import androidx.compose.ui.platform.LocalContext
 import com.turbodownloader.ui.components.CategoryChip
 import com.turbodownloader.ui.components.DownloadItemCard
 import com.turbodownloader.ui.components.YouTubeDownloadDialog
+import com.turbodownloader.ui.player.VideoPlayerActivity
 import com.turbodownloader.util.FileUtil
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
+    val context = LocalContext.current
     val allDownloads by viewModel.allDownloads.collectAsState()
     val activeDownloads by viewModel.activeDownloads.collectAsState()
     val completedDownloads by viewModel.completedDownloads.collectAsState()
@@ -155,6 +159,14 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
                     onRetry = { viewModel.retryDownload(item) },
                     onOpen = {},
                     onDelete = { viewModel.deleteDownload(item.id) },
+                    onPlayVideo = {
+                        if (item.category == FileCategory.VIDEO || item.category == FileCategory.AUDIO) {
+                            context.startActivity(Intent(context, VideoPlayerActivity::class.java).apply {
+                                putExtra("file_path", item.filePath)
+                                putExtra("file_name", item.fileName)
+                            })
+                        }
+                    },
                     speed = progress?.speed ?: item.speed,
                     downloadedSize = progress?.downloadedBytes ?: item.downloadedSize,
                     eta = progress?.eta ?: -1L
@@ -191,7 +203,8 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel()) {
         AddDownloadDialog(
             onDismiss = { showAddDialog = false },
             onConfirm = { request -> viewModel.addDownload(request); showAddDialog = false },
-            onYouTubeUrl = { ytUrl -> viewModel.extractYouTube(ytUrl) }
+            onYouTubeUrl = { ytUrl -> viewModel.extractYouTube(ytUrl) },
+            onMagnetLink = { magnet -> viewModel.addMagnetDownload(magnet); showAddDialog = false }
         )
     }
 

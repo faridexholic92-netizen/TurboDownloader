@@ -67,6 +67,7 @@ fun DownloadItemCard(
     onRetry: () -> Unit,
     onOpen: () -> Unit,
     onDelete: () -> Unit = {},
+    onPlayVideo: () -> Unit = {},
     modifier: Modifier = Modifier,
     speed: Long = 0L,
     downloadedSize: Long = item.downloadedSize,
@@ -213,6 +214,11 @@ fun DownloadItemCard(
                     }
                 }
                 DownloadStatus.COMPLETED -> {
+                    if (item.category == FileCategory.VIDEO || item.category == FileCategory.AUDIO) {
+                        IconButton(onClick = onPlayVideo, modifier = Modifier.size(40.dp)) {
+                            Icon(Icons.Default.PlayArrow, "Play", tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
                     IconButton(onClick = onDelete, modifier = Modifier.size(40.dp)) {
                         Icon(Icons.Default.Delete, "Delete", tint = MaterialTheme.colorScheme.error)
                     }

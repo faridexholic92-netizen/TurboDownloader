@@ -27,22 +27,27 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.turbodownloader.data.model.FileCategory
 import com.turbodownloader.ui.components.DownloadItemCard
+import com.turbodownloader.ui.player.VideoPlayerActivity
 import com.turbodownloader.ui.screens.home.HomeViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun DownloadsScreen(viewModel: HomeViewModel = hiltViewModel()) {
+    val context = LocalContext.current
     val activeDownloads by viewModel.activeDownloads.collectAsState()
     val completedDownloads by viewModel.completedDownloads.collectAsState()
     val scope = rememberCoroutineScope()
@@ -109,6 +114,14 @@ fun DownloadsScreen(viewModel: HomeViewModel = hiltViewModel()) {
                                 onRetry = { viewModel.retryDownload(item) },
                                 onOpen = {},
                                 onDelete = { viewModel.deleteDownload(item.id) },
+                                onPlayVideo = {
+                                    if (item.category == FileCategory.VIDEO || item.category == FileCategory.AUDIO) {
+                                        context.startActivity(Intent(context, VideoPlayerActivity::class.java).apply {
+                                            putExtra("file_path", item.filePath)
+                                            putExtra("file_name", item.fileName)
+                                        })
+                                    }
+                                },
                                 speed = progress?.speed ?: item.speed,
                                 downloadedSize = progress?.downloadedBytes ?: item.downloadedSize,
                                 eta = progress?.eta ?: -1L

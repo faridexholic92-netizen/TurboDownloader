@@ -114,6 +114,11 @@ dependencies {
     // Work Manager
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 
+    // ExoPlayer (Media3) for video playback
+    implementation("androidx.media3:media3-exoplayer:1.2.1")
+    implementation("androidx.media3:media3-ui:1.2.1")
+    implementation("androidx.media3:media3-common:1.2.1")
+
     // Splash Screen
     implementation("androidx.core:core-splashscreen:1.0.1")
 

@@ -13,6 +13,7 @@ import com.turbodownloader.download.DownloadEngine
 import com.turbodownloader.download.YouTubeExtractor
 import com.turbodownloader.download.YouTubeVideoInfo
 import com.turbodownloader.service.DownloadService
+import com.turbodownloader.torrent.TorrentEngine
 import com.turbodownloader.ui.theme.ThemeManager
 import com.turbodownloader.util.FileUtil
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -31,7 +32,8 @@ class HomeViewModel @Inject constructor(
     private val repository: DownloadRepository,
     private val downloadEngine: DownloadEngine,
     private val youTubeExtractor: YouTubeExtractor,
-    private val themeManager: ThemeManager
+    private val themeManager: ThemeManager,
+    private val torrentEngine: TorrentEngine
 ) : AndroidViewModel(application) {
 
     private val _selectedCategory = MutableStateFlow<FileCategory?>(null)
@@ -152,6 +154,30 @@ class HomeViewModel @Inject constructor(
     }
 
     fun getDownloadProgress(downloadId: Long) = downloadEngine.getProgress(downloadId)
+
+    fun addMagnetDownload(magnetUrl: String) {
+        viewModelScope.launch {
+            val torrentInfo = TorrentEngine.parseMagnetLink(magnetUrl) ?: run {
+                _ytError.value = "Invalid magnet link"
+                return@launch
+            }
+            val customPath = themeManager.downloadPath.first()
+            val downloadDir = FileUtil.getDownloadDirectory(application, customPath.ifBlank { null })
+            val filePath = File(downloadDir, torrentInfo.name).absolutePath
+
+            val item = DownloadItem(
+                url = magnetUrl,
+                fileName = torrentInfo.name,
+                filePath = filePath,
+                mimeType = "application/x-bittorrent",
+                category = FileCategory.OTHER,
+                threadCount = 1
+            )
+
+            val id = repository.insertDownload(item)
+            torrentEngine.startTorrentDownload(torrentInfo, id)
+        }
+    }
 
     fun getStorageInfo(): Pair<Long, Long> {
         val stat = Environment.getExternalStorageDirectory()

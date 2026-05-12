@@ -36,12 +36,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.turbodownloader.data.model.DownloadRequest
 import com.turbodownloader.download.YouTubeExtractor
+import com.turbodownloader.torrent.TorrentEngine
 
 @Composable
 fun AddDownloadDialog(
     onDismiss: () -> Unit,
     onConfirm: (DownloadRequest) -> Unit,
-    onYouTubeUrl: ((String) -> Unit)? = null
+    onYouTubeUrl: ((String) -> Unit)? = null,
+    onMagnetLink: ((String) -> Unit)? = null
 ) {
     var url by remember { mutableStateOf("") }
     var fileName by remember { mutableStateOf("") }
@@ -67,7 +69,7 @@ fun AddDownloadDialog(
                     value = url,
                     onValueChange = { url = it; urlError = null },
                     label = { Text("Download URL") },
-                    placeholder = { Text("https://example.com/file.zip") },
+                    placeholder = { Text("URL, YouTube link, or magnet:") },
                     leadingIcon = { Icon(Icons.Default.Link, contentDescription = null) },
                     trailingIcon = {
                         IconButton(onClick = {
@@ -110,10 +112,19 @@ fun AddDownloadDialog(
                     Button(
                         onClick = {
                             if (url.isBlank()) { urlError = "Please enter a URL"; return@Button }
-                            if (!url.startsWith("http://") && !url.startsWith("https://") && !url.startsWith("ftp://")) {
+                            val trimmedUrl = url.trim()
+                            if (TorrentEngine.isMagnetLink(trimmedUrl)) {
+                                if (onMagnetLink != null) {
+                                    onMagnetLink(trimmedUrl)
+                                    onDismiss()
+                                } else {
+                                    urlError = "Magnet links not supported"
+                                }
+                                return@Button
+                            }
+                            if (!trimmedUrl.startsWith("http://") && !trimmedUrl.startsWith("https://") && !trimmedUrl.startsWith("ftp://")) {
                                 urlError = "Invalid URL format"; return@Button
                             }
-                            val trimmedUrl = url.trim()
                             if (onYouTubeUrl != null && YouTubeExtractor.isYouTubeUrl(trimmedUrl)) {
                                 onYouTubeUrl(trimmedUrl)
                                 onDismiss()
